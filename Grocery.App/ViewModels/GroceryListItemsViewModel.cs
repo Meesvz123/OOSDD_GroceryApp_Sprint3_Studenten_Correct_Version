@@ -4,8 +4,10 @@ using CommunityToolkit.Mvvm.Input;
 using Grocery.App.Views;
 using Grocery.Core.Interfaces.Services;
 using Grocery.Core.Models;
+using Grocery.Core.Services;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using System.Windows.Input;
 
 namespace Grocery.App.ViewModels
 {
@@ -15,7 +17,7 @@ namespace Grocery.App.ViewModels
         private readonly IGroceryListItemsService _groceryListItemsService;
         private readonly IProductService _productService;
         private readonly IFileSaverService _fileSaverService;
-        
+
         public ObservableCollection<GroceryListItem> MyGroceryListItems { get; set; } = [];
         public ObservableCollection<Product> AvailableProducts { get; set; } = [];
 
@@ -29,6 +31,9 @@ namespace Grocery.App.ViewModels
             _groceryListItemsService = groceryListItemsService;
             _productService = productService;
             _fileSaverService = fileSaverService;
+            SearchCommand = new Command<string>(UitvoerenZoekOpdracht);
+            FilteredProducts = new ObservableCollection<Product>(AvailableProducts);
+
             Load(groceryList.Id);
         }
 
@@ -43,8 +48,10 @@ namespace Grocery.App.ViewModels
         {
             AvailableProducts.Clear();
             foreach (Product p in _productService.GetAll())
-                if (MyGroceryListItems.FirstOrDefault(g => g.ProductId == p.Id) == null  && p.Stock > 0)
+                if (MyGroceryListItems.FirstOrDefault(g => g.ProductId == p.Id) == null && p.Stock > 0)
                     AvailableProducts.Add(p);
+
+            FilteredProducts = new ObservableCollection<Product>(AvailableProducts);
         }
 
         partial void OnGroceryListChanged(GroceryList value)
@@ -85,6 +92,48 @@ namespace Grocery.App.ViewModels
                 await Toast.Make($"Opslaan mislukt: {ex.Message}").Show(cancellationToken);
             }
         }
+        private string _searchTerm;
+        public string SearchTerm
+        {
+            get => _searchTerm;
+            set
+            {
+                if (_searchTerm != value)
+                {
+                    _searchTerm = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+        private ObservableCollection<Product> _filteredProducts;
+        public ObservableCollection<Product> FilteredProducts
+        {
+            get => _filteredProducts;
+            set
+            {
+                _filteredProducts = value;
+                OnPropertyChanged();
+            }
+        }
+        public ICommand SearchCommand { get; }
+
+        private void UitvoerenZoekOpdracht(string searchterm)
+        {
+            if (string.IsNullOrWhiteSpace(searchterm))
+            {
+                FilteredProducts = new ObservableCollection<Product>(AvailableProducts);
+            }
+            else
+            {
+                var filtered = AvailableProducts
+                    .Where(p => p.Name.Contains(searchterm, StringComparison.Ordinal))
+                    .ToList();
+                FilteredProducts = new ObservableCollection<Product>(filtered);
+
+            }
+        }
+
 
     }
+
 }
