@@ -6,6 +6,7 @@ using Grocery.Core.Interfaces.Services;
 using Grocery.Core.Models;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using System.Windows.Input;
 
 namespace Grocery.App.ViewModels
 {
@@ -15,27 +16,124 @@ namespace Grocery.App.ViewModels
         private readonly IGroceryListItemsService _groceryListItemsService;
         private readonly IProductService _productService;
         private readonly IFileSaverService _fileSaverService;
-        
+
         public ObservableCollection<GroceryListItem> MyGroceryListItems { get; set; } = [];
         public ObservableCollection<Product> AvailableProducts { get; set; } = [];
+
+        // LINKS
+        private string _searchTermLeft;
+        public string SearchTermLeft
+        {
+            get => _searchTermLeft;
+            set
+            {
+                if (_searchTermLeft != value)
+                {
+                    _searchTermLeft = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private ObservableCollection<GroceryListItem> _filteredGroceryListItems;
+        public ObservableCollection<GroceryListItem> FilteredGroceryListItems
+        {
+            get => _filteredGroceryListItems;
+            set
+            {
+                _filteredGroceryListItems = value;
+                OnPropertyChanged();
+            }
+        }
+        public ICommand SearchCommandLeft { get; }
+
+        private void UitvoerenZoekOpdrachtLinks(string searchterm)
+        {
+            if (string.IsNullOrWhiteSpace(searchterm))
+            {
+                FilteredGroceryListItems = new ObservableCollection<GroceryListItem>(MyGroceryListItems);
+            }
+            else
+            {
+                var filtered = MyGroceryListItems
+                    .Where(i => i.Product.Name.Contains(searchterm, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                FilteredGroceryListItems = new ObservableCollection<GroceryListItem>(filtered);
+            }
+        }
+
+        // RECHTS
+        private string _searchTerm;
+        public string SearchTerm
+        {
+            get => _searchTerm;
+            set
+            {
+                if (_searchTerm != value)
+                {
+                    _searchTerm = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private ObservableCollection<Product> _filteredProducts;
+        public ObservableCollection<Product> FilteredProducts
+        {
+            get => _filteredProducts;
+            set
+            {
+                _filteredProducts = value;
+                OnPropertyChanged();
+            }
+        }
+        public ICommand SearchCommand { get; }
+
+        private void UitvoerenZoekOpdracht(string searchterm)
+        {
+            if (string.IsNullOrWhiteSpace(searchterm))
+            {
+                FilteredProducts = new ObservableCollection<Product>(AvailableProducts);
+            }
+            else
+            {
+                var filtered = AvailableProducts
+                    .Where(p => p.Name.Contains(searchterm, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                FilteredProducts = new ObservableCollection<Product>(filtered);
+            }
+        }
 
         [ObservableProperty]
         GroceryList groceryList = new(0, "None", DateOnly.MinValue, "", 0);
         [ObservableProperty]
         string myMessage;
 
-        public GroceryListItemsViewModel(IGroceryListItemsService groceryListItemsService, IProductService productService, IFileSaverService fileSaverService)
+        public GroceryListItemsViewModel(IGroceryListItemsService groceryListItemsService,
+                                         IProductService productService,
+                                         IFileSaverService fileSaverService)
         {
             _groceryListItemsService = groceryListItemsService;
             _productService = productService;
             _fileSaverService = fileSaverService;
+
+            SearchCommand = new Command<string>(UitvoerenZoekOpdracht);
+            SearchCommandLeft = new Command<string>(UitvoerenZoekOpdrachtLinks);
+
+            FilteredProducts = new ObservableCollection<Product>(AvailableProducts);
+            FilteredGroceryListItems = new ObservableCollection<GroceryListItem>(MyGroceryListItems);
+
             Load(groceryList.Id);
         }
 
         private void Load(int id)
         {
             MyGroceryListItems.Clear();
-            foreach (var item in _groceryListItemsService.GetAllOnGroceryListId(id)) MyGroceryListItems.Add(item);
+            foreach (var item in _groceryListItemsService.GetAllOnGroceryListId(id))
+                MyGroceryListItems.Add(item);
+
+            FilteredGroceryListItems = new ObservableCollection<GroceryListItem>(MyGroceryListItems);
+
             GetAvailableProducts();
         }
 
@@ -43,8 +141,10 @@ namespace Grocery.App.ViewModels
         {
             AvailableProducts.Clear();
             foreach (Product p in _productService.GetAll())
-                if (MyGroceryListItems.FirstOrDefault(g => g.ProductId == p.Id) == null  && p.Stock > 0)
+                if (MyGroceryListItems.FirstOrDefault(g => g.ProductId == p.Id) == null && p.Stock > 0)
                     AvailableProducts.Add(p);
+
+            FilteredProducts = new ObservableCollection<Product>(AvailableProducts);
         }
 
         partial void OnGroceryListChanged(GroceryList value)
@@ -58,6 +158,7 @@ namespace Grocery.App.ViewModels
             Dictionary<string, object> paramater = new() { { nameof(GroceryList), GroceryList } };
             await Shell.Current.GoToAsync($"{nameof(ChangeColorView)}?Name={GroceryList.Name}", true, paramater);
         }
+
         [RelayCommand]
         public void AddProduct(Product product)
         {
@@ -85,6 +186,5 @@ namespace Grocery.App.ViewModels
                 await Toast.Make($"Opslaan mislukt: {ex.Message}").Show(cancellationToken);
             }
         }
-
     }
 }
