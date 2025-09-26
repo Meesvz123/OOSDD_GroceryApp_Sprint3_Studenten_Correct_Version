@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - Feature/Artefact
       - infra/runner-toevoegen
   pull_request:
     branches:
       - main
+      - Develop
  
 jobs:
   test:
@@ -32,3 +34,12 @@ jobs:
  
       - name: Voer unit tests uit
         run: dotnet test --configuration Release --no-restore --no-build --verbosity normal
+
+      - name: Upload testresultaten
+        if: always()   # ook uploaden als tests falen
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: |
+            **/TestResults/
+            **/test_results.trx
