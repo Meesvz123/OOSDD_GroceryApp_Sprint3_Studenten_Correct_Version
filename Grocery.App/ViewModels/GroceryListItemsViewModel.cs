@@ -20,7 +20,6 @@ namespace Grocery.App.ViewModels
         public ObservableCollection<GroceryListItem> MyGroceryListItems { get; set; } = [];
         public ObservableCollection<Product> AvailableProducts { get; set; } = [];
 
-        // LINKS
         private string _searchTermLeft;
         public string SearchTermLeft
         {
@@ -62,7 +61,6 @@ namespace Grocery.App.ViewModels
             }
         }
 
-        // RECHTS
         private string _searchTerm;
         public string SearchTerm
         {
